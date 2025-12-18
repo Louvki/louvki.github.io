@@ -1,0 +1,133 @@
+/* @use rules must come first in SCSS */
+@use "tailwindcss";
+@use "@webtui/theme-catppuccin";
+
+/* Import WebTUI styles */
+@import "@webtui/css/base.css";
+@import "@webtui/css/utils/box.css";
+@import "@webtui/css/components/button.css";
+@import "@webtui/css/components/typography.css";
+@import "@webtui/css/components/badge.css";
+@import "@webtui/css/components/input.css";
+
+/* Define the layer order for both Tailwind and WebTUI */
+@layer base, components, utils;
+
+/* 1) LIGHT THEME as default */
+:root {
+  --background: #fafafa;
+  --foreground: #2d3748;
+  --foreground1: #4a5568;
+  --foreground1-darker: #718096;
+
+  --tech-badge-background: #e2e8f0; /* a darker light gray */
+  --tech-badge-text: #fb64b6;
+
+  --download-pdf-button: brown;
+
+  --card-background: #f7f7f7; /* 1% darker than background */
+
+  color-scheme: light;
+}
+
+/* 2) DARK THEME override; toggle by adding `.dark` on <html> (or use [data-theme="dark"]) */
+:root.dark {
+  --background: #202123;
+  --foreground: #e0dbd1;
+  --foreground1: #cac2b7;
+  --foreground1-darker: #c4bdb2;
+
+  --tech-badge-background: #262626;
+  --tech-badge-text: #fb64b6;
+
+  --download-pdf-button: darkslategrey;
+
+  --card-background: #0a0a0a; /* 1% lighter than background */
+
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Roboto', Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* Allow custom link styles to override the default */
+a[class] {
+  text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: light;
+  }
+}
+
+.foreground1-darker {
+  color: var(--foreground1-darker);
+}
+
+.tech-badge-background-color {
+  background-color: var(--tech-badge-background);
+}
+
+.tech-badge-text-color {
+  color: var(--tech-badge-text);
+}
+
+.download-pdf-button-color {
+  background-color: var(--download-pdf-button);
+  &:hover {
+    background-color: color-mix(in srgb, var(--download-pdf-button) 90%, white);
+  }
+}
+
+.container {
+  max-width: 1200px;
+}
+
+.container-thin {
+  max-width: 900px;
+}
+
+/* Shared utility classes */
+.h1LetterSpacing {
+  letter-spacing: 6px;
+}
+
+.h1WordSpacing {
+  word-spacing: 24px;
+}
+
+.letterSpacing2px {
+  letter-spacing: 2px;
+}
+
+.contactContainer {
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+
+  :global(svg) {
+    margin-right: 6px;
+    height: 18px;
+    max-width: 18px;
+    width: 18px;
+    overflow: hidden;
+  }
+}
+
