@@ -1,56 +1,67 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy } from "svelte";
 
-	interface Dot {
-		x: number;
-		y: number;
-		vx: number;
-		vy: number;
-		originX: number;
-		originY: number;
-		randomAngle: number;
-		randomSpeed: number;
-	}
+	// Property offsets for Float32Array (8 properties per dot)
+	const X = 0;
+	const Y = 1;
+	const VX = 2;
+	const VY = 3;
+	const ORIGIN_X = 4;
+	const ORIGIN_Y = 5;
+	const RANDOM_ANGLE = 6;
+	const RANDOM_SPEED = 7;
+	const STRIDE = 8;
 
-	const SPACING = 20;
-	const MAX_DIST = 100;
+	const SPACING = 5;
+	const MAX_DIST = 40;
+
 	const RETURN_FORCE_FACTOR = 0.01;
-	const MOUSE_FORCE_FACTOR = 0.01;
+	const MOUSE_FORCE_FACTOR = 0.2;
 	const VELOCITY_DAMP = 0.9;
+
+	const VORTEX_STRENGTH = 0.001;
+	const VORTEX_RADIUS_FACTOR = 0.0009;
+
+	const ENABLE_RANDOM_MOVEMENT = false;
 	const RANDOM_MOVEMENT_SPEED = 0.2;
 	const RANDOM_MOVEMENT_CHANGE_RATE = 0.02;
-	const VORTEX_STRENGTH = 0.0005;
-	const VORTEX_RADIUS_FACTOR = 0.0001;
+
+	let USE_IMAGE_DATA = false;
 
 	let canvas: HTMLCanvasElement;
-	let dots: Dot[] = [];
+	let dotsData: Float32Array;
+	let numDots: number = 0;
 	let animationFrameId: number;
+	let ctx: CanvasRenderingContext2D;
+
 	const mouseRef = { x: 0, y: 0, active: false };
 	const vortexCenterRef = { x: 0, y: 0 };
 
-	function initializeDots(width: number, height: number): Dot[] {
-		const initialDots: Dot[] = [];
+	function initializeDots(width: number, height: number): void {
+		const tempDots: number[] = [];
 		for (let x = 0; x < width; x += SPACING) {
 			for (let y = 0; y < height; y += SPACING) {
-				initialDots.push({
-					x,
-					y,
-					vx: 0,
-					vy: 0,
-					originX: x,
-					originY: y,
-					randomAngle: Math.random() * Math.PI * 2,
-					randomSpeed: Math.random() * RANDOM_MOVEMENT_SPEED,
-				});
+				tempDots.push(
+					x, // X
+					y, // Y
+					0, // VX
+					0, // VY
+					x, // ORIGIN_X
+					y, // ORIGIN_Y
+					Math.random() * Math.PI * 2, // RANDOM_ANGLE
+					Math.random() * RANDOM_MOVEMENT_SPEED, // RANDOM_SPEED
+				);
 			}
 		}
-		return initialDots;
+		numDots = tempDots.length / STRIDE;
+		USE_IMAGE_DATA = numDots > 70000;
+		dotsData = new Float32Array(tempDots);
 	}
 
 	function handleMove(e: MouseEvent | TouchEvent) {
 		let x, y;
 
-		if ('touches' in e) {
+		if ("touches" in e) {
 			x = e.touches[0].clientX;
 			y = e.touches[0].clientY;
 		} else {
@@ -71,80 +82,121 @@
 		vortexCenterRef.x = canvas.width / 2;
 		vortexCenterRef.y = canvas.height / 2;
 
-		dots = initializeDots(canvas.width, canvas.height);
+		initializeDots(canvas.width, canvas.height);
 	}
 
 	function animate() {
-		if (!canvas) return;
-
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
+		if (!canvas || !ctx) return;
 
 		// Update dots
-		dots = dots.map((dot) => {
-			let { x, y, vx, vy, randomAngle, randomSpeed } = dot;
-			const { originX, originY } = dot;
-			const { x: vortexX, y: vortexY } = vortexCenterRef;
+		for (let i = 0; i < numDots; i++) {
+			const idx = i * STRIDE;
 
-			// Calculate distance from vortex center
-			const dxVortex = x - vortexX;
-			const dyVortex = y - vortexY;
-			const distanceFromVortex = Math.sqrt(dxVortex * dxVortex + dyVortex * dyVortex);
+			if (ENABLE_RANDOM_MOVEMENT) {
+				const { x: vortexX, y: vortexY } = vortexCenterRef;
 
-			// Calculate angle from vortex center
-			const angleFromVortex = Math.atan2(dyVortex, dxVortex);
+				// Calculate distance from vortex center
+				const dxVortex = dotsData[idx + X] - vortexX;
+				const dyVortex = dotsData[idx + Y] - vortexY;
+				const distanceFromVortex = Math.sqrt(
+					dxVortex * dxVortex + dyVortex * dyVortex,
+				);
 
-			// Apply vortex force
-			const vortexForce = VORTEX_STRENGTH * (1 + distanceFromVortex * VORTEX_RADIUS_FACTOR);
-			vx += -Math.sin(angleFromVortex) * vortexForce;
-			vy += Math.cos(angleFromVortex) * vortexForce;
+				// Calculate angle from vortex center
+				const angleFromVortex = Math.atan2(dyVortex, dxVortex);
 
-			// Update random movement
-			randomAngle += (Math.random() - 0.5) * RANDOM_MOVEMENT_CHANGE_RATE;
-			randomSpeed = Math.max(0.1, randomSpeed + (Math.random() - 0.5) * 0.1);
+				// Apply vortex force
+				const vortexForce =
+					VORTEX_STRENGTH *
+					(1 + distanceFromVortex * VORTEX_RADIUS_FACTOR);
+				dotsData[idx + VX] += -Math.sin(angleFromVortex) * vortexForce;
+				dotsData[idx + VY] += Math.cos(angleFromVortex) * vortexForce;
 
-			// Apply random movement
-			vx += Math.cos(randomAngle) * randomSpeed;
-			vy += Math.sin(randomAngle) * randomSpeed;
+				// Update random movement
+				dotsData[idx + RANDOM_ANGLE] +=
+					(Math.random() - 0.5) * RANDOM_MOVEMENT_CHANGE_RATE;
+				dotsData[idx + RANDOM_SPEED] = Math.max(
+					0.1,
+					dotsData[idx + RANDOM_SPEED] + (Math.random() - 0.5) * 0.1,
+				);
+
+				// Apply random movement
+				dotsData[idx + VX] +=
+					Math.cos(dotsData[idx + RANDOM_ANGLE]) *
+					dotsData[idx + RANDOM_SPEED];
+				dotsData[idx + VY] +=
+					Math.sin(dotsData[idx + RANDOM_ANGLE]) *
+					dotsData[idx + RANDOM_SPEED];
+			}
 
 			// Pull the dot back toward its original position
-			const dxOrigin = originX - x;
-			const dyOrigin = originY - y;
-			vx += dxOrigin * RETURN_FORCE_FACTOR;
-			vy += dyOrigin * RETURN_FORCE_FACTOR;
+			const dxOrigin = dotsData[idx + ORIGIN_X] - dotsData[idx + X];
+			const dyOrigin = dotsData[idx + ORIGIN_Y] - dotsData[idx + Y];
+			dotsData[idx + VX] += dxOrigin * RETURN_FORCE_FACTOR;
+			dotsData[idx + VY] += dyOrigin * RETURN_FORCE_FACTOR;
 
 			// If mouse is active, attract nearby dots
 			if (mouseRef.active) {
-				const dxMouse = mouseRef.x - x;
-				const dyMouse = mouseRef.y - y;
-				const distance = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+				const dxMouse = mouseRef.x - dotsData[idx + X];
+				const dyMouse = mouseRef.y - dotsData[idx + Y];
 
-				if (distance < MAX_DIST) {
+				const distSq = dxMouse * dxMouse + dyMouse * dyMouse;
+				if (distSq < MAX_DIST * MAX_DIST) {
+					const distance = Math.sqrt(distSq);
 					const force = (1 - distance / MAX_DIST) * 0.6;
-					vx += dxMouse * force * MOUSE_FORCE_FACTOR;
-					vy += dyMouse * force * MOUSE_FORCE_FACTOR;
+					dotsData[idx + VX] += dxMouse * force * MOUSE_FORCE_FACTOR;
+					dotsData[idx + VY] += dyMouse * force * MOUSE_FORCE_FACTOR;
 				}
 			}
 
 			// Update position
-			x += vx;
-			y += vy;
+			dotsData[idx + X] += dotsData[idx + VX];
+			dotsData[idx + Y] += dotsData[idx + VY];
 
 			// Damp velocity
-			vx *= VELOCITY_DAMP;
-			vy *= VELOCITY_DAMP;
-
-			return { x, y, vx, vy, originX, originY, randomAngle, randomSpeed };
-		});
+			dotsData[idx + VX] *= VELOCITY_DAMP;
+			dotsData[idx + VY] *= VELOCITY_DAMP;
+		}
 
 		// Draw dots
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		dots.forEach((dot) => {
-			ctx.beginPath();
-			ctx.arc(dot.x, dot.y, 1.1, 0, 1.1 * Math.PI);
-			ctx.fillStyle = '#c7c7c7';
-			ctx.fill();
-		});
+
+		if (USE_IMAGE_DATA) {
+			// Draw using ImageData
+			const imageData = ctx.createImageData(canvas.width, canvas.height);
+			const data = imageData.data;
+
+			for (let i = 0; i < numDots; i++) {
+				const idx = i * STRIDE;
+				const x = Math.round(dotsData[idx + X]);
+				const y = Math.round(dotsData[idx + Y]);
+
+				// Skip if out of bounds
+				if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height)
+					continue;
+
+				// Calculate pixel index (4 bytes per pixel: R, G, B, A)
+				const pixelIdx = (y * canvas.width + x) * 4;
+
+				// Set pixel color: rgba(199, 199, 199, 0.2)
+				data[pixelIdx] = 199; // R
+				data[pixelIdx + 1] = 199; // G
+				data[pixelIdx + 2] = 199; // B
+				data[pixelIdx + 3] = 51; // A (0.2 * 255)
+			}
+
+			ctx.putImageData(imageData, 0, 0);
+		} else {
+			// Draw using arc() calls
+			ctx.fillStyle = "rgba(199, 199, 199, 0.2)";
+
+			for (let i = 0; i < numDots; i++) {
+				const idx = i * STRIDE;
+				ctx.beginPath();
+				ctx.arc(dotsData[idx + X], dotsData[idx + Y], 1.1, 0, 2.2);
+				ctx.fill();
+			}
+		}
 
 		animationFrameId = requestAnimationFrame(animate);
 	}
@@ -155,30 +207,42 @@
 		canvas.width = window.innerWidth;
 		canvas.height = window.innerHeight;
 
+		const context = canvas.getContext("2d");
+		if (!context) throw new Error("Could not get 2D context");
+		ctx = context;
+
 		vortexCenterRef.x = canvas.width / 2;
 		vortexCenterRef.y = canvas.height / 2;
 
-		dots = initializeDots(canvas.width, canvas.height);
+		initializeDots(canvas.width, canvas.height);
 
-		window.addEventListener('mousemove', handleMove);
-		window.addEventListener('touchmove', handleMove);
-		window.addEventListener('resize', handleResize);
+		window.addEventListener("mousemove", handleMove);
+		window.addEventListener("touchmove", handleMove);
+		window.addEventListener("resize", handleResize);
 
 		animationFrameId = requestAnimationFrame(animate);
 	});
 
 	onDestroy(() => {
-		window.removeEventListener('mousemove', handleMove);
-		window.removeEventListener('touchmove', handleMove);
-		window.removeEventListener('resize', handleResize);
+		window.removeEventListener("mousemove", handleMove);
+		window.removeEventListener("touchmove", handleMove);
+		window.removeEventListener("resize", handleResize);
 		if (animationFrameId) {
 			cancelAnimationFrame(animationFrameId);
 		}
 	});
 </script>
 
-<canvas
-	bind:this={canvas}
-	style="position: fixed; top: 0; left: 0; z-index: -1; width: 100vw; height: 100vh; pointer-events: none;"
-></canvas>
+<canvas bind:this={canvas} class="cavas-style"></canvas>
 
+<style lang="scss">
+	.cavas-style {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: 0;
+		width: 100vw;
+		height: 100vh;
+		pointer-events: none;
+	}
+</style>

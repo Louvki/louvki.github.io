@@ -21,6 +21,8 @@
 		"@tailwindcss/postcss": "^4.0.11",
 		"@webtui/css": "^0.0.2",
 		"@webtui/theme-catppuccin": "^0.0.2",
+		"compress-pdf": "^0.5.6",
+		"pdf-lib": "^1.17.1",
 		"puppeteer": "^24.4.0"
 	},
 	"devDependencies": {

@@ -18,9 +18,9 @@
 				<a href="#/resume" class="text-white hover:text-gray-300 transition">
 					Resume
 				</a>
-				<a href="#/music" class="text-white hover:text-gray-300 transition">
+				<!-- <a href="#/music" class="text-white hover:text-gray-300 transition">
 					Music Portfolio
-				</a>
+				</a> -->
 			</div>
 			<div class="flex items-center space-x-4">
 				<button
