@@ -9,7 +9,7 @@
 
 	let currentPath = "/";
 	let pdfPrint = false;
-	let isBackgroundVisible = false;
+	let isBackgroundVisible = true;
 
 	function getSearchParams(): URLSearchParams {
 		const hash = window.location.hash;
