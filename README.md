@@ -1,6 +1,6 @@
-# Lukas Vis Portfolio 2
+# Lukas Vis Portfolio
 
-This is a portfolio website built with SvelteKit, converted from the original Next.js version.
+This is a portfolio website built using Svelte. Originally built with NextJs and then ported for easier development experience.
 
 ## Getting Started
 
